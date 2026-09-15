@@ -1,0 +1,35 @@
+services:
+  postgres_db:
+    image: postgres:18
+    container_name: servicioComida-Postgres
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "${POSTGRES_HOST_PORT}:${POSTGRES_CONTAINER_PORT}"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./db/inicio.sql:/docker-entrypoint-initdb.d/inicio.sql
+  app:
+    build: .
+    container_name: servicioComida-App
+
+    environment:
+      PGHOST: ${PGHOST}
+      PGPORT: ${PGPORT}
+      PGDATABASE: ${PGDATABASE}
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+
+    ports:
+      - "${APP_HOST_PORT}:${APP_CONTAINER_PORT}"
+
+    depends_on:
+      - postgres_db
+
+volumes:
+  postgres_data:
