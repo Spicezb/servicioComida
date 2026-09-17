@@ -1,0 +1,76 @@
+{
+  "id": "servicio-comida-realm",
+  "realm": "servicio-comida-realm",
+  "enabled": true,
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "requiredCredentials": [ "password" ],
+  "clients": [
+    {
+      "id": "b1a2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+      "clientId": "servicio-comida-client",
+      "name": "Servicio Comida Client",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [ "*" ],
+      "webOrigins": [ "*" ],
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "aud-mapper-comida",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "servicio-comida-client",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "usuario",
+        "description": "Rol estandar de usuario para realizar pedidos"
+      },
+      {
+        "name": "admin",
+        "description": "Rol de administrador del servicio de comida"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "usuario_test",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Usuario",
+      "lastName": "Test",
+      "email": "usuario_test@comida.com",
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [ "usuario", "default-roles-servicio-comida-realm" ]
+    }
+  ],
+  "defaultRoles": [ "default-roles-servicio-comida-realm" ]
+}

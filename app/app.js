@@ -1,5 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
+const { auth, claimCheck } = require('express-oauth2-jwt-bearer');
 
 const app = express();
 
@@ -29,6 +30,29 @@ const esFechaValida = (fechaString) => {
 const pool = new Pool();
 
 
+// CONFIGURACIÓN DE KEYCLOAK PARA DOCKER
+const checkJwt = auth({
+    audience: process.env.KEYCLOAK_CLIENT_ID, 
+    
+    // Docker se conecta internamente a esta URL para descargar las llaves públicas
+    jwksUri: `http://keycloak:8080/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/certs`,
+    
+    // Le indicamos que el emisor escrito dentro del token debe ser localhost
+    issuer: `http://localhost:8080/realms/${process.env.KEYCLOAK_REALM}`,
+    
+    tokenSigningAlg: 'RS256'
+});
+
+// Middleware para exigir el rol "usuario" o "admin"
+const exigirRolPedido = claimCheck((claims) => {
+    const roles = claims['realm_access']?.roles || [];
+    return roles.includes('usuario') || roles.includes('admin');
+});
+
+
+// ------------------------------------------- RUTAS ABIERTAS (No necesitan token ni roles de keycloak) --------------
+
+
 // GET /health - Verifica que la aplicación esté viva
 app.get('/health', (req, res) => {
     res.status(200).json({
@@ -37,7 +61,7 @@ app.get('/health', (req, res) => {
 });
 
 
-// GET /ready - Verifica conexión con PostgreSQL
+// GET /ready - Verifica conexión con PostgreSQL (Retorna 503 si falla)
 app.get('/ready', (req, res) => {
     pool.query('SELECT 1')
         .then(() => {
@@ -53,8 +77,47 @@ app.get('/ready', (req, res) => {
 });
 
 
+// GET /pedidos - Lista todos los pedidos 
+app.get('/pedidos', (req, res) => {
+    const { metodo } = req.query;
+
+    // Si el usuario envía el filtro, validamos que pertenezca a los métodos válidos
+    if (metodo) {
+        if (typeof metodo !== 'string' || !metodosValidos.includes(metodo.trim())) {
+            return res.status(400).json({
+                status: 'error',
+                message: `El parámetro metodo para filtrar debe ser uno de los siguientes: ${metodosValidos.join(', ')}.`
+            });
+        }
+
+        // Consulta filtrada usando parámetros válidos para prevenir SQL Injection
+        const queryText = 'SELECT * FROM pedidos WHERE metodo = \$1 ORDER BY id ASC';
+        
+        return pool.query(queryText, [metodo.trim()])
+            .then((result) => {
+                res.status(200).json(result.rows);
+            })
+            .catch((err) => {
+                res.status(500).json({ status: 'error' });
+            });
+    }
+
+    // Si no se envía el parámetro ?metodo=, devuelve todos los pedidos como antes
+    pool.query('SELECT * FROM pedidos ORDER BY id ASC')
+        .then((result) => {
+            res.status(200).json(result.rows);
+        })
+        .catch((err) => {
+            res.status(500).json({ status: 'error' });
+        });
+});
+
+
+// ------------------------------------------- RUTAS PROTEGIDAS (Exigen Token y Roles de Keycloak) ----------------------------
+
+
 // POST /pedido - Crea un pedido respetando la estructura exacta del JSON
-app.post('/pedido', (req, res) => {
+app.post('/pedido', checkJwt, exigirRolPedido, (req, res) => {
     const { nombre, descripcion, fecha, metodo } = req.body;
 
     // Validación de campos requeridos 
@@ -69,7 +132,7 @@ app.post('/pedido', (req, res) => {
     if (typeof metodo !== 'string' || !metodosValidos.includes(metodo.trim())) {
         return res.status(400).json({
             status: 'error',
-            message: 'El metodo debe ser comer_aca, para_llevar o delivery.'
+            message: `El metodo debe ser uno de los siguientes: ${metodosValidos.join(', ')}.`
         });
     }
 
@@ -81,11 +144,9 @@ app.post('/pedido', (req, res) => {
         });
     }
 
-    // Si mandan fecha, la insertamos, si no, dejamos que Postgre use NOW()
-    // Esto se hace asi por si hacen un pedido anticipado con fecha de otro dia
     const queryText = fecha 
-        ? 'INSERT INTO pedidos (nombre, descripcion, fecha, metodo) VALUES ($1, $2, $3, $4) RETURNING *'
-        : 'INSERT INTO pedidos (nombre, descripcion, fecha, metodo) VALUES ($1, $2, NOW(), $3) RETURNING *';
+        ? 'INSERT INTO pedidos (nombre, descripcion, fecha, metodo) VALUES (\$1, \$2, \$3, \$4) RETURNING *'
+        : 'INSERT INTO pedidos (nombre, descripcion, fecha, metodo) VALUES (\$1, \$2, NOW(), \$3) RETURNING *';
     
     const queryParams = fecha 
         ? [nombre, descripcion, fecha, metodo.trim()] 
@@ -93,7 +154,6 @@ app.post('/pedido', (req, res) => {
 
     pool.query(queryText, queryParams)
         .then((result) => {
-            // result.rows[0] contiene el objeto exacto insertado: { id, nombre, descripcion, fecha, metodo }
             res.status(201).json(result.rows[0]);
         })
         .catch((err) => {
@@ -105,10 +165,10 @@ app.post('/pedido', (req, res) => {
 
 
 // GET /pedido/:id - Consulta un pedido por ID
-app.get('/pedido/:id', (req, res) => {
+app.get('/pedido/:id', checkJwt, exigirRolPedido, (req, res) => {
     const { id } = req.params;
 
-    pool.query('SELECT * FROM pedidos WHERE id = $1', [id])
+    pool.query('SELECT * FROM pedidos WHERE id = \$1', [id])
         .then((result) => {
             if (result.rows.length === 0) {
                 return res.status(404).json({
@@ -126,7 +186,7 @@ app.get('/pedido/:id', (req, res) => {
 
 
 // PUT /pedido/:id - Actualiza un pedido completo
-app.put('/pedido/:id', (req, res) => {
+app.put('/pedido/:id', checkJwt, exigirRolPedido, (req, res) => {
     const { id } = req.params;
     const { nombre, descripcion, fecha, metodo } = req.body;
 
@@ -141,7 +201,7 @@ app.put('/pedido/:id', (req, res) => {
     if (typeof metodo !== 'string' || !metodosValidos.includes(metodo.trim())) {
         return res.status(400).json({
             status: 'error',
-            message: 'El metodo debe ser comer_aca, para_llevar o delivery.'
+            message: `El metodo debe ser uno de los siguientes: ${metodosValidos.join(', ')}.`
         });
     }
 
@@ -153,11 +213,9 @@ app.put('/pedido/:id', (req, res) => {
         });
     }
 
-    // Si viene la fecha en el cuerpo la actualizamos
-    // Misma razon que en el POST, el usuario puede cambiar la fecha si se equivoca 
     const queryText = fecha
-        ? 'UPDATE pedidos SET nombre = $1, descripcion = $2, fecha = $3, metodo = $4 WHERE id = $5 RETURNING *'
-        : 'UPDATE pedidos SET nombre = $1, descripcion = $2, metodo = $3 WHERE id = $4 RETURNING *';
+        ? 'UPDATE pedidos SET nombre = \$1, descripcion = \$2, fecha = \$3, metodo = \$4 WHERE id = \$5 RETURNING *'
+        : 'UPDATE pedidos SET nombre = \$1, descripcion = \$2, metodo = \$3 WHERE id = \$4 RETURNING *';
 
     const queryParams = fecha
         ? [nombre, descripcion, fecha, metodo.trim(), id]
@@ -180,11 +238,11 @@ app.put('/pedido/:id', (req, res) => {
 });
 
 
-// DELETE /pedido/:id - Elimina un pedido
-app.delete('/pedido/:id', (req, res) => {
+// DELETE /pedido/:id - Elimina un pedido (Retorna 204 si se elimina) 
+app.delete('/pedido/:id', checkJwt, exigirRolPedido, (req, res) => {
     const { id } = req.params;
 
-    pool.query('DELETE FROM pedidos WHERE id = $1 RETURNING *', [id])
+    pool.query('DELETE FROM pedidos WHERE id = \$1 RETURNING *', [id])
         .then((result) => {
             if (result.rows.length === 0) {
                 return res.status(404).json({
@@ -200,42 +258,16 @@ app.delete('/pedido/:id', (req, res) => {
         });
 });
 
-
-// GET /pedidos - Lista todos los pedidos (Soporta filtro opcional ?metodo=)
-app.get('/pedidos', (req, res) => {
-    const { metodo } = req.query;
-
-    // 1. Si el usuario envía el filtro, validamos que pertenezca a los 3 métodos válidos
-    if (metodo) {
-        if (typeof metodo !== 'string' || !metodosValidos.includes(metodo.trim())) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'El parámetro metodo para filtrar debe ser comer_aca, para_llevar o delivery.'
-            });
-        }
-
-        // Consulta filtrada usando parámetros válidos para prevenir SQL Injection
-        const queryText = 'SELECT * FROM pedidos WHERE metodo = $1 ORDER BY id ASC';
-        
-        return pool.query(queryText, [metodo.trim()])
-            .then((result) => {
-                res.status(200).json(result.rows);
-            })
-            .catch((err) => {
-                res.status(500).json({ status: 'error' });
-            });
+// Middleware global para interceptar errores de Keycloak y dar formatos de errores 401/403 válidos
+app.use((err, req, res, next) => {
+    if (err.name === 'UnauthorizedError' || err.status === 401) {
+        return res.status(401).json({ status: 'error', message: 'Token inválido o ausente.' });
     }
-
-    // 2. Si no se envía el parámetro ?metodo=, devuelve todos los pedidos como antes
-    pool.query('SELECT * FROM pedidos ORDER BY id ASC')
-        .then((result) => {
-            res.status(200).json(result.rows);
-        })
-        .catch((err) => {
-            res.status(500).json({ status: 'error' });
-        });
+    if (err.status === 403) {
+        return res.status(403).json({ status: 'error', message: 'No tienes los permisos ni el rol requerido.' });
+    }
+    res.status(500).json({ status: 'error', message: 'Error interno del servidor.' });
 });
-
 
 // Inicia el server en el puerto 3000 y tira msj de confirmación
 app.listen(3000, () => {

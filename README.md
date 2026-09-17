@@ -52,3 +52,7 @@ Healthchecks:
 El healthcheck de PostgreSQL permite determinar cuando la base de datos está disponible para aceptar conexiones, para esto se utiliza pg_isready, que se encarga de realizar la comprobación sin la necesidad de ejecutar una consulta directamente sobre la tabla. El resultado de este healthcheck es utilizado por la app para la condición de service_healthy en el depends_on.
 
 El healthcheck de la aplicación comprueba que el servidor esté funcionando correctamente al hacer una solicitud al endpoint /health, este es capaz de verificar la disponibilidad del servicio sin requerir de acceso a PostgreSQL.
+
+### Inicialización Automática y Configuración de Keycloak
+
+El entorno de seguridad se encuentra completamente automatizado. Al ejecutar el comando `docker compose up -d --build`, Keycloak leerá el archivo `realm-export.json` e importará de forma automática el realm, los clientes, los roles y el usuario de prueba sin necesidad de configuraciones manuales. Para acceder al panel de administración, abre tu navegador e ingresa a `http://localhost:8080`, loguéate con las credenciales de administrador definidas en tu archivo `.env` (por defecto `admin` / `admin_password123`) y asegúrate de seleccionar el realm **servicio-comida-realm** en la esquina superior izquierda. Desde allí podrás gestionar el usuario de prueba `usuario_test` (cuya contraseña es `password123`) en la sección **Users**, o verificar los permisos de acceso directo por consola en la pestaña **Clients** seleccionando `servicio-comida-client`.
