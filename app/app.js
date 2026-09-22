@@ -45,10 +45,18 @@ const checkJwt = auth({
 });
 
 // Middleware para exigir el rol "usuario" o "admin"
-const exigirRolPedido = claimCheck((claims) => {
-    const roles = claims['realm_access']?.roles || [];
-    return roles.includes('usuario') || roles.includes('admin');
-});
+const exigirRolPedido = (req, res, next) => {
+    const roles = req.auth?.payload?.realm_access?.roles || [];
+    console.log('Usuario:', req.auth?.payload?.preferred_username);
+    console.log('Roles:', roles);
+    if (!roles.includes('usuario') && !roles.includes('admin')) {
+        return res.status(403).json({
+            status: 'error',
+            message: 'No tienes el rol requerido.'
+        });
+    }
+    next();
+};
 
 
 // ------------------------------------------- RUTAS ABIERTAS (No necesitan token ni roles de keycloak) --------------
@@ -259,8 +267,11 @@ app.delete('/pedido/:id', checkJwt, exigirRolPedido, (req, res) => {
         });
 });
 
-// Middleware global para interceptar errores de Keycloak y dar formatos de errores 401/403 válidos
+// Middleware global para interceptar errores de Keycloak y dar formatos de errores 400/401/403 válidos
 app.use((err, req, res, next) => {
+    if (err.type === 'entity.parse.failed' || err.status === 400 || err.statusCode === 400) {
+        return res.status(400).json({ status: 'error', message: 'Entrada mal formada.' });
+    }
     if (err.name === 'UnauthorizedError' || err.status === 401) {
         return res.status(401).json({ status: 'error', message: 'Token inválido o ausente.' });
     }
@@ -269,6 +280,7 @@ app.use((err, req, res, next) => {
     }
     res.status(500).json({ status: 'error', message: 'Error interno del servidor.' });
 });
+
 
 // Inicia el server en el puerto 3000 y tira msj de confirmación
 if (require.main === module) {
