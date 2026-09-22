@@ -1,6 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const { auth, claimCheck } = require('express-oauth2-jwt-bearer');
+require('dotenv').config({ quiet: true });
 
 const app = express();
 
@@ -270,6 +271,14 @@ app.use((err, req, res, next) => {
 });
 
 // Inicia el server en el puerto 3000 y tira msj de confirmación
-app.listen(3000, () => {
-    console.log('Servidor corriendo en puerto 3000');
-});
+if (require.main === module) {
+    app.listen(3000, () => {
+        console.log('Servidor corriendo en puerto 3000');
+    });
+}
+
+// Exportación para utilizar en las pruebas
+module.exports = {
+    esFechaValida,
+    metodosValidos
+};
