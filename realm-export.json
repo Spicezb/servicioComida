@@ -53,24 +53,46 @@
       }
     ]
   },
-  "users": [
-    {
-      "username": "usuario_test",
-      "enabled": true,
-      "emailVerified": true,
-      "firstName": "Usuario",
-      "lastName": "Test",
-      "email": "usuario_test@comida.com",
-      "requiredActions": [],
-      "credentials": [
-        {
-          "type": "password",
-          "value": "password123",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [ "usuario", "default-roles-servicio-comida-realm" ]
-    }
-  ],
-  "defaultRoles": [ "default-roles-servicio-comida-realm" ]
+ "users": [
+  {
+    "username": "usuario_test",
+    "enabled": true,
+    "emailVerified": true,
+    "firstName": "Usuario",
+    "lastName": "Test",
+    "email": "usuario_test@comida.com",
+    "requiredActions": [],
+    "credentials": [
+      {
+        "type": "password",
+        "value": "password123",
+        "temporary": false
+      }
+    ],
+    "realmRoles": [
+      "usuario",
+      "default-roles-servicio-comida-realm"
+    ]
+  },
+
+  {
+    "username": "usuario_sin_rol",
+    "enabled": true,
+    "emailVerified": true,
+    "firstName": "Usuario",
+    "lastName": "Sin Rol",
+    "email": "usuario_sin_rol@comida.com",
+    "requiredActions": [],
+    "credentials": [
+      {
+        "type": "password",
+        "value": "password123",
+        "temporary": false
+      }
+    ],
+    "realmRoles": [
+      "default-roles-servicio-comida-realm"
+    ]
+  }
+]
 }
