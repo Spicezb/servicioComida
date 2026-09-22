@@ -1,6 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
-const { auth, claimCheck } = require('express-oauth2-jwt-bearer');
+const { auth } = require('express-oauth2-jwt-bearer');
 require('dotenv').config({ quiet: true });
 
 const app = express();
