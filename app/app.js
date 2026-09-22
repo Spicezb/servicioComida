@@ -6,7 +6,7 @@ const app = express();
 
 app.use(express.json());
 
-// Métodos permitidos de forma hardcodeada para la tarea (filtros y validaciones)
+// Métodos de forma hardcodeada para la tarea (filtros y validaciones)
 const metodosValidos = ['comer_aca', 'para_llevar', 'delivery', 'drive_thru'];
 
 // Función auxiliar para validar que una fecha esté entre el momento actual y 3 días a futuro

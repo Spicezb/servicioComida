@@ -22,6 +22,7 @@ services:
       retries: 6
       start_period: 15s
 
+
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: servicioComida-Keycloak
@@ -67,10 +68,41 @@ services:
         condition: service_healthy
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${APP_CONTAINER_PORT}/health"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))\""]
       interval: 5s
       timeout: 5s
       retries: 3
+
+
+  monitor:
+    image: alpine:latest
+    container_name: servicioComida-Monitor
+    # Montamos el socket de Docker para que este contenedor pueda leer la salud de los demás
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Espera a que la App y sus dependencias terminen de arrancar para mostrar el reporte de salud
+    entrypoint: >
+      /bin/sh -c "
+      apk add --no-cache curl docker-cli > /dev/null 2>&1;
+      
+      until [ \$(docker inspect --format='{{.State.Health.Status}}' servicioComida-Postgres) = 'healthy' ]; do sleep 1; done;
+      until [ \$(docker inspect --format='{{.State.Health.Status}}' servicioComida-Keycloak) = 'healthy' ]; do sleep 1; done;
+      until [ \$(docker inspect --format='{{.State.Health.Status}}' servicioComida-App) = 'healthy' ]; do sleep 1; done;
+      
+      sleep 2;
+      echo '';
+      echo '==================================================================';
+      echo '===       REPORTE DE ARRANQUE Y VERIFICACIÓN DE DEPENDENCIAS   ===';
+      echo '==================================================================';
+      echo '>>> [OK] servicioComida-Postgres inició correctamente.';
+      echo '>>> [OK] servicioComida-Keycloak importó el Realm y está listo.';
+      echo '>>> [OK] servicioComida-App levantó la ruta /health con éxito.';
+      echo '=== ¡TODO EL ECOSISTEMA ESTÁ TOTALMENTE SALUDABLE Y ORDENADO! ===';
+      echo '- Ingrese a la app desde su navegador en http://localhost:3000';
+      echo '';
+      "
+
+
 
 volumes:
   postgres_data:
