@@ -221,18 +221,23 @@ npm test -- --verbose
  
 ```
 servicioComida/
-├── app/app.js              # Servicio Express
-├── db/                     # Scripts de inicialización de PostgreSQL
-├── pruebas/                # Pruebas unitarias e integración (Jest)
+├── app/.app.js                  # Servicio Express
+├── db/                          # Scripts de inicialización de PostgreSQL
+│   ├── .01-inicio.sql              
+│   └── .02-datos.sql                        
 ├── kubernetes/
-│   ├── base/                # [pendiente] Deployment, Service, PVC, ConfigMap, Secret
-│   └── overlays/            # [pendiente] Kustomize overlay
-├── dockerfile
-├── docker-compose.yml
-├── realm-export.json       # Configuración de Keycloak (realm, client, roles, usuarios)
-├── .env.example
+│   ├── base/                    # Deployment, Service, PVC, ConfigMap, Secret
+│   └── overlays/local/          # Kustomize overlay
+├── pruebas/                     # Pruebas unitarias e integración (Jest)
+│   ├── .integracion.test.js               
+│   └── .unitarias.test.js             
 ├── .dockerignore
-└── .gitignore
+├── .env.example
+├── .gitignore
+├── .docker-compose.yml
+├── .dockerfile
+├── .README.md
+└── .realm-export.json            # Configuración de Keycloak (realm, client, roles, usuarios)
 ```
 
 
