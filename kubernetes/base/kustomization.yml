@@ -12,3 +12,13 @@ resources:
   - postgres-config.yml
   - postgres-secret.yml
   - keycloak-secret.yml
+
+configMapGenerator:
+  - name: postgres-init
+    files:
+      - files/01-inicio.sql
+      - files/02-datos.sql
+
+  - name: keycloak-realm
+    files:
+      - realm-export.json=files/realm-export.json

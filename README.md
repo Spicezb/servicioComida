@@ -48,6 +48,7 @@ La autenticación no se implementa a mano, se delega en **Keycloak**, que corre 
 - Docker Engine 24+
 - Docker Compose v2 (`docker compose`, sin guion)
 - Puertos libres en el host: `3000` (app), `5432` (PostgreSQL), `8080` (Keycloak)
+- Kind
 No se necesita Node.js instalado en el host: la aplicación corre dentro del contenedor.
 
 ## 3. docker-compose
@@ -235,8 +236,176 @@ servicioComida/
 ```
 
 
-## 10. Kubernetes 
-Pendiente de montar
+## 10. Módulo Kubernetes 
+
+El mismo sistema de la sección 1, expresado como manifiestos de Kubernetes y personalizado con Kustomize, para correr en un clúster local de `kind`.
+
+### Correspondencia Compose → Kubernetes
+
+| Compose | Kubernetes | Notas |
+|---|---|---|
+| `services.app` / `services.postgres_db` / `services.keycloak` | `Deployment` (`servicio-comida-app`, `postgres`, `keycloak`) | Cada Deployment gestiona sus pods y sus reinicios |
+| `ports:` | `Service` | Expuestos al host mediante los mapeos de `kubernetes/kind-config.yml`, sin necesidad de `kubectl port-forward` |
+| nombre del servicio en la red de Compose | nombre del `Service` de Kubernetes | Kubernetes resuelve por DNS interno igual que Compose por nombre de servicio |
+| `volumes: postgres_data` | `PersistentVolumeClaim` | Los datos sobreviven a que el Pod de PostgreSQL se destruya y recree (verificable con `kubectl get pvc`, estado `Bound`) |
+| `environment:` con contraseñas | `postgres-secret.yml` / `keycloak-secret.yml`, generados localmente a partir de `postgres-secret.example.yml` / `keycloak-secret.example.yml` | Estos archivos reales **no se versionan**; solo las plantillas `.example.yml` van al repositorio |
+| `environment:` sin contraseñas | `ConfigMap` | Configuración no sensible externalizada igual que en Compose |
+| `healthcheck:` | `livenessProbe` / `readinessProbe` en cada Deployment | El script `start-k8s.ps1` espera explícitamente a que los tres queden disponibles antes de reportar éxito |
+| `container_name:` | *(sin equivalente necesario)* | Kubernetes identifica y enruta por `Service`/`labels`, no por nombre de contenedor |
+| `build: .` | *(sin equivalente directo)* | `kind` no construye Dockerfiles: `start-k8s.ps1` hace `docker build` y luego carga la imagen al clúster con `kind load docker-image` |
+| `depends_on: condition: service_healthy` | *(sin equivalente directo)* | Kubernetes no bloquea el arranque de un Deployment hasta que otro esté healthy; el `rollout status` de cada Deployment y las probes son lo más cercano, pero no impiden que la app arranque antes de tiempo |
+| `docker-compose.yml` completo | `kubectl apply -k kubernetes/overlays/local` | Aplica `base/` con las personalizaciones del overlay |
+
+### Requisitos previos
+
+- Docker Desktop (o Docker Engine) en ejecución
+- `kubectl`
+- `kind`
+
+En Windows, `install-tools.ps1` verifica e instala lo que falte de esta lista.
+
+### Opción 1 — Ejecución cómoda
+
+Forma recomendada para levantar el entorno local.
+
+**1. Clonar el repositorio**
+
+```powershell
+git clone <URL_DEL_REPOSITORIO>
+cd servicioComida
+```
+
+**2. Preparar los archivos de secretos**
+
+Los archivos con credenciales reales no se versionan en Git. Se crean localmente a partir de las plantillas:
+
+```powershell
+Copy-Item kubernetes\base\postgres-secret.example.yml kubernetes\base\postgres-secret.yml
+Copy-Item kubernetes\base\keycloak-secret.example.yml kubernetes\base\keycloak-secret.yml
+```
+
+Los valores pueden modificarse localmente si se desea.
+
+**3. Instalar/verificar herramientas**
+
+```powershell
+.\install-tools.ps1
+```
+
+El script verifica la disponibilidad de Docker, `kubectl` y `kind`. Si alguna herramienta acaba de instalarse, puede ser necesario cerrar y volver a abrir PowerShell.
+
+**4. Levantar Kubernetes**
+
+```powershell
+.\start-k8s.ps1
+```
+
+El script hace, en orden:
+
+1. Verificación de Docker.
+2. Creación del clúster `servicio-comida` con `kind`.
+3. Construcción de la imagen Docker de la aplicación.
+4. Carga de la imagen dentro del clúster.
+5. Aplicación del overlay de Kustomize.
+6. Espera hasta que PostgreSQL, Keycloak y la aplicación estén disponibles.
+7. Muestra los Pods, Services y PersistentVolumeClaims resultantes.
+
+Al terminar:
+
+- Aplicación: `http://localhost:3000`
+- Keycloak: `http://localhost:8080`
+
+No es necesario `kubectl port-forward`: el clúster `kind` usa los mapeos de puertos definidos en `kubernetes/kind-config.yml`.
+
+### Opción 2 — Ejecución manual
+
+Muestra explícitamente cada paso que hacen los scripts de la Opción 1.
+
+**1. Clonar el repositorio**
+
+```powershell
+git clone <URL_DEL_REPOSITORIO>
+cd servicioComida
+```
+
+**2. Crear los archivos locales de secretos**
+
+```powershell
+Copy-Item kubernetes\base\postgres-secret.example.yml kubernetes\base\postgres-secret.yml
+Copy-Item kubernetes\base\keycloak-secret.example.yml kubernetes\base\keycloak-secret.yml
+```
+
+**3. Verificar las herramientas**
+
+```powershell
+docker --version
+kubectl version --client
+kind version
+docker info    # confirma que Docker Desktop está corriendo
+```
+
+**4. Crear el clúster kind**
+
+```powershell
+kind create cluster --name servicio-comida --config kubernetes\kind-config.yml
+kubectl get nodes    # debe mostrar el nodo en estado Ready
+```
+
+**5. Construir la imagen de la aplicación**
+
+```powershell
+docker build -t servicio-comida-app:local .
+```
+
+**6. Cargar la imagen dentro del clúster kind**
+
+```powershell
+kind load docker-image servicio-comida-app:local --name servicio-comida
+```
+
+**7. Aplicar Kubernetes con Kustomize**
+
+```powershell
+kubectl apply -k kubernetes\overlays\local
+```
+
+Crea y configura Deployments, Services, PersistentVolumeClaim, ConfigMaps y Secrets de PostgreSQL, Keycloak y la aplicación.
+
+**8. Esperar a que los Deployments estén disponibles**
+
+```powershell
+kubectl rollout status deployment/postgres --timeout=180s
+kubectl rollout status deployment/keycloak --timeout=240s
+kubectl rollout status deployment/servicio-comida-app --timeout=180s
+```
+
+**9. Verificar los Pods**
+
+```powershell
+kubectl get pods
+```
+
+PostgreSQL, Keycloak y la aplicación deben aparecer en estado `Running`.
+
+**10. Verificar los Services**
+
+```powershell
+kubectl get services
+```
+
+**11. Verificar la persistencia**
+
+```powershell
+kubectl get pvc
+```
+
+El PVC de PostgreSQL debe aparecer con estado `Bound`.
+
+### Apagar
+
+```powershell
+kind delete cluster --name servicio-comida
+```
 
 
 ## 11. Decisiones de Arquitectura

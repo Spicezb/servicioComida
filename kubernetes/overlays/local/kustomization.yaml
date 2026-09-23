@@ -4,5 +4,10 @@ kind: Kustomization
 resources:
   - ../../base
 
+images:
+  - name: servicio-comida-app
+    newTag: local
+
 patches:
-  - path: cambios-app.yml
+  - path: app-service-patch.yml
+  - path: keycloak-service-patch.yml

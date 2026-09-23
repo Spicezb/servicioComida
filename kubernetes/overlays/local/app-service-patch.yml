@@ -5,9 +5,9 @@ metadata:
   name: servicio-comida-service
 
 spec:
-  selector:
-    app: servicio-comida
+  type: NodePort
 
   ports:
     - port: 3000
       targetPort: 3000
+      nodePort: 30000
