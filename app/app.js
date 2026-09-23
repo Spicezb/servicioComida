@@ -36,7 +36,7 @@ const checkJwt = auth({
     audience: process.env.KEYCLOAK_CLIENT_ID, 
     
     // Docker se conecta internamente a esta URL para descargar las llaves públicas
-    jwksUri: `http://keycloak:8080/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/certs`,
+    jwksUri: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/certs`,
     
     // Le indicamos que el emisor escrito dentro del token debe ser localhost
     issuer: `http://localhost:8080/realms/${process.env.KEYCLOAK_REALM}`,
