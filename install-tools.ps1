@@ -10,34 +10,65 @@ function Test-CommandExists {
     return [bool](Get-Command $Command -ErrorAction SilentlyContinue)
 }
 
+function Refresh-Path {
+    $machinePath = [System.Environment]::GetEnvironmentVariable(
+        "Path",
+        [System.EnvironmentVariableTarget]::Machine
+    )
+
+    $userPath = [System.Environment]::GetEnvironmentVariable(
+        "Path",
+        [System.EnvironmentVariableTarget]::User
+    )
+
+    $env:Path = "$machinePath;$userPath"
+
+    $wingetLinks = "$env:LOCALAPPDATA\Microsoft\WinGet\Links"
+
+    if (Test-Path $wingetLinks) {
+        if ($env:Path -notlike "*$wingetLinks*") {
+            $env:Path += ";$wingetLinks"
+        }
+    }
+}
+
+# Actualizar PATH al iniciar
+Refresh-Path
+
 # Verificar winget
 if (-not (Test-CommandExists "winget")) {
-    Write-Error "winget no está disponible. Instalá App Installer desde Microsoft Store antes de continuar."
+    Write-Error "winget no esta disponible. Instala App Installer desde Microsoft Store antes de continuar."
     exit 1
 }
 
 # kubectl
 if (Test-CommandExists "kubectl") {
-    Write-Host "kubectl ya está instalado."
+    Write-Host "kubectl ya esta instalado."
 }
 else {
     Write-Host "Instalando kubectl..."
 
     winget install --id Kubernetes.kubectl -e --accept-package-agreements --accept-source-agreements
+
+    Refresh-Path
 }
 
 # kind
 if (Test-CommandExists "kind") {
-    Write-Host "kind ya está instalado."
+    Write-Host "kind ya esta instalado."
 }
 else {
     Write-Host "Instalando kind..."
 
     winget install --id Kubernetes.kind -e --accept-package-agreements --accept-source-agreements
+
+    Refresh-Path
 }
 
 Write-Host ""
-Write-Host "=== Verificación final ==="
+Write-Host "=== Verificacion final ==="
+
+Refresh-Path
 
 if (Test-CommandExists "kubectl") {
     kubectl version --client
@@ -54,5 +85,5 @@ else {
 }
 
 Write-Host ""
-Write-Host "Instalación/verificación completada."
-Write-Host "Si alguna herramienta recién instalada no aparece, cerrá y abrí PowerShell otra vez."
+Write-Host "Instalacion/verificacion completada."
+Write-Host "Si alguna herramienta recien instalada no aparece, cerra y abri PowerShell otra vez."

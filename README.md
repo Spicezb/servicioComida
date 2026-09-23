@@ -296,6 +296,12 @@ Los valores pueden modificarse localmente si se desea.
 
 **3. Instalar/verificar herramientas**
 
+Se recomienda correr el siguiente comando en caso de que powershell requiera ciertos permisos:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
 ```powershell
 .\install-tools.ps1
 ```

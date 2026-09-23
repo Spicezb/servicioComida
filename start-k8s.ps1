@@ -12,24 +12,24 @@ Write-Host ""
 
 # Verificar herramientas
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    throw "Docker no está instalado o no está disponible en PATH."
+    throw "Docker no esta instalado o no esta disponible en PATH."
 }
 
 if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) {
-    throw "kubectl no está instalado o no está disponible en PATH."
+    throw "kubectl no esta instalado o no esta disponible en PATH."
 }
 
 if (-not (Get-Command kind -ErrorAction SilentlyContinue)) {
-    throw "kind no está instalado o no está disponible en PATH."
+    throw "kind no esta instalado o no esta disponible en PATH."
 }
 
-# Verificar que Docker esté corriendo
+# Verificar que Docker este corriendo
 Write-Host "Verificando Docker..."
 
 docker info *> $null
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Docker está instalado, pero Docker Desktop no parece estar corriendo."
+    throw "Docker esta instalado, pero Docker Desktop no parece estar corriendo."
 }
 
 Write-Host "Docker disponible."
@@ -37,11 +37,11 @@ Write-Host ""
 
 # Verificar archivos necesarios
 if (-not (Test-Path $kindConfig)) {
-    throw "No se encontró el archivo: $kindConfig"
+    throw "No se encontro el archivo: $kindConfig"
 }
 
 if (-not (Test-Path $overlayPath)) {
-    throw "No se encontró el overlay: $overlayPath"
+    throw "No se encontro el overlay: $overlayPath"
 }
 
 # 1. Crear cluster si no existe
@@ -69,7 +69,7 @@ Write-Host ""
 $clusters = @(kind get clusters)
 
 if ($clusters -notcontains $clusterName) {
-    throw "El cluster no aparece después de intentar crearlo."
+    throw "El cluster no aparece despues de intentar crearlo."
 }
 
 Write-Host "Clusters disponibles:"
@@ -84,7 +84,7 @@ kubectl config use-context "kind-$clusterName"
 kubectl wait --for=condition=Ready node --all --timeout=120s
 
 if ($LASTEXITCODE -ne 0) {
-    throw "El nodo Kubernetes no llegó al estado Ready."
+    throw "El nodo Kubernetes no llego al estado Ready."
 }
 
 kubectl get nodes
@@ -97,7 +97,7 @@ Write-Host "Construyendo imagen Docker '$imageName'..."
 docker build -t $imageName .
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Falló la construcción de la imagen Docker."
+    throw "Fallo la construccion de la imagen Docker."
 }
 
 Write-Host ""
@@ -114,12 +114,12 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 
 # 5. Aplicar Kubernetes con Kustomize
-Write-Host "Aplicando configuración con Kustomize..."
+Write-Host "Aplicando configuracion con Kustomize..."
 
 kubectl apply -k $overlayPath
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Falló kubectl apply -k."
+    throw "Fallo kubectl apply -k."
 }
 
 Write-Host ""
@@ -130,7 +130,7 @@ Write-Host "Esperando PostgreSQL..."
 kubectl rollout status deployment/postgres --timeout=180s
 
 if ($LASTEXITCODE -ne 0) {
-    throw "PostgreSQL no quedó disponible."
+    throw "PostgreSQL no quedo disponible."
 }
 
 # 7. Esperar Keycloak
@@ -139,16 +139,16 @@ Write-Host "Esperando Keycloak..."
 kubectl rollout status deployment/keycloak --timeout=240s
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Keycloak no quedó disponible."
+    throw "Keycloak no quedo disponible."
 }
 
-# 8. Esperar aplicación
-Write-Host "Esperando aplicación..."
+# 8. Esperar aplicacion
+Write-Host "Esperando aplicacion..."
 
 kubectl rollout status deployment/servicio-comida-app --timeout=180s
 
 if ($LASTEXITCODE -ne 0) {
-    throw "La aplicación no quedó disponible."
+    throw "La aplicacion no quedo disponible."
 }
 
 Write-Host ""
