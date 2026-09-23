@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+data:
+  POSTGRES_DB: servicioComidaDB
+  PGPORT: "5432"
+
+  KEYCLOAK_REALM: servicio-comida-realm
+  KEYCLOAK_CLIENT_ID: servicio-comida-client
+  KEYCLOAK_URL: http://keycloak-service:8080
+  

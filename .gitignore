@@ -1,2 +1,4 @@
 node_modules/
 .env
+kubernetes/base/postgres-secret.yml
+kubernetes/base/keycloak-secret.yml

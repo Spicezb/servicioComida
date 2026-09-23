@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: servicio-comida-app
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: servicio-comida
+
+  template:
+    metadata:
+      labels:
+        app: servicio-comida
+
+    spec:
+      containers:
+        - name: app
+          image: servicio-comida-app:latest
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 3000
+
+          env:
+            - name: PGHOST
+              value: postgres-service
+
+            - name: PGPORT
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: PGPORT
+
+            - name: PGDATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: POSTGRES_DB
+
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+                  
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: KEYCLOAK_REALM
+
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: KEYCLOAK_CLIENT_ID
+
+            - name: KEYCLOAK_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: KEYCLOAK_URL
