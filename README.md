@@ -236,8 +236,11 @@ servicioComida/
 ├── .gitignore
 ├── .docker-compose.yml
 ├── .dockerfile
+├── .install-tools.ps1          # Serie de comandos de powershell para instalar kind y kubectl
 ├── .README.md
-└── .realm-export.json            # Configuración de Keycloak (realm, client, roles, usuarios)
+├── .realm-export.json          # Configuración de Keycloak (realm, client, roles, usuarios)
+├── .start-k8s.ps1              # Serie de comandos de powershell para arrancar kubernetes
+└── .stop-k8s.ps1               # Serie de comandos de powershell para parar kubernetes         
 ```
 
 
