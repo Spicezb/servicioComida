@@ -450,3 +450,10 @@ Para el diseño e implementación de este servicio, se priorizó la modularidad,
 ## 12. Uso de IA
 Durante el desarrollo se utilizaron herramientas de IA como apoyo para explicar conceptos, revisar configuraciones, ayudar en el proceso de redacción técnica pero accesible y detectar posibles errores. Las decisiones, comandos, manifiestos y cambios incorporados al repositorio fueron revisados y comprobados manualmente por el grupo antes de considerarse parte de la solución.
 Además se utilizó las herramientas de IA para realizar investigaciones de tecnologías y comandos de manera mas rápida y eficaz, asi evitando entrar a extensas documentaciones y ahorrar tiempo durante el proceso de producción. En síntesis la IA fue un asistente y no el autor del trabajo. 
+
+
+## 13. Video de Comprobacion
+Se adjunta link al video en YouTube en donde se realiza la comprobación de que las especificaciones de la tarea funcionan de manera correcta y las pruebas son exitosas.
+
+* Video: "Comprobacion TCI: Andres_C, Xavier_C y Sebastian_A"
+* Link: "https://youtu.be/kwuKsn2xaUI"
