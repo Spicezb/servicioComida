@@ -81,6 +81,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     # Espera a que la App y sus dependencias terminen de arrancar para mostrar el reporte de salud
+    # Luego imprimimos el mensaje diciendo que todo esta saludable y listo para usar
     entrypoint: >
       /bin/sh -c "
       apk add --no-cache curl docker-cli > /dev/null 2>&1;
@@ -94,11 +95,17 @@ services:
       echo '==================================================================';
       echo '===       REPORTE DE ARRANQUE Y VERIFICACIÓN DE DEPENDENCIAS   ===';
       echo '==================================================================';
+      echo '';
       echo '>>> [OK] servicioComida-Postgres inició correctamente.';
       echo '>>> [OK] servicioComida-Keycloak importó el Realm y está listo.';
       echo '>>> [OK] servicioComida-App levantó la ruta /health con éxito.';
+      echo '';
+      echo '==================================================================';
       echo '=== ¡TODO EL ECOSISTEMA ESTÁ TOTALMENTE SALUDABLE Y ORDENADO! ===';
-      echo '- Ingrese a la app desde su navegador en http://localhost:3000';
+      echo '==================================================================';
+      echo '';
+      echo '';
+      echo '>>> Ingrese a la app desde su navegador en http://localhost:3000';
       echo '';
       "
 

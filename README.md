@@ -169,7 +169,52 @@ curl http://localhost:3000/pedidos
  
 ## 8. Pruebas
 
-Parte pendiente por explicar (Xavi)
+El proyecto cuenta con una suite de pruebas automatizadas utilizando **Jest** para verificar de forma exhaustiva tanto la lógica interna de la aplicación como el comportamiento integrado con el ecosistema de contenedores. Las pruebas se dividen en dos categorías principales localizadas en el directorio `pruebas/`:
+
+### Pruebas Unitarias
+
+Se enfocan en validar funciones aisladas de la aplicación sin interactuar de forma externa con bases de datos ni servicios de autenticación. Evalúan específicamente el archivo `app/app.js`:
+
+* **Validación de Fechas (`esFechaValida`)**:
+  * Acepta fechas futuras dentro del rango permitido (formato ISO).
+  * Rechaza fechas pasadas de forma estricta.
+  * Controla errores devolviendo falso ante formatos de texto incorrectos.
+
+* **Validación de Métodos de Pedido (`metodosValidos`)**:
+  * Confirma la aceptación de métodos configurados en las reglas del negocio (ej. `delivery`).
+  * Deniega la inserción de métodos no estipulados en los requerimientos del sistema (ej. `express`).
+
+### Pruebas de Integración
+
+Comprueban la interacción real entre la aplicación (Express), el servidor de autenticación (Keycloak) y la persistencia en base de datos (PostgreSQL) usando **Supertest**. 
+
+Para su correcto funcionamiento, implementan dos utilidades asíncronas clave:
+* `obtenerToken(username, password)`: Realiza solicitudes POST directamente a Keycloak para adquirir un *Access Token* JWT válido.
+
+* `esperarKeycloak()`: Genera bucles de espera controlados para pausar los tests hasta que el contenedor de Keycloak responda con éxito.
+
+Los escenarios validados son:
+
+* **Verificación de Disponibilidad (Health y Ready)**: Evalúa que los endpoints públicos `/health` y `/ready` respondan correctamente con código `200 OK` y el estado esperado, asegurando la comunicación activa del servidor.
+
+* **Flujo Feliz de Creación**: Valida que un usuario autenticado y con el rol adecuado (`usuario_test`) pueda registrar exitosamente un pedido mediante un método POST en `/pedido`, verificando la integridad de las propiedades de retorno (`id`, `nombre`, `descripcion`, `metodo`) y el código de éxito `201 Created`.
+
+* **Control de Seguridad y Restricciones de Acceso (RBAC)**:
+  * Garantiza el rechazo con código `401 Unauthorized` si se intenta interactuar con rutas protegidas sin adjuntar credenciales.
+  * Confirma el bloqueo con código `403 Forbidden` si el usuario se autentica correctamente (`usuario_sin_rol`), pero carece de los privilegios o roles del sistema necesarios para operar la ruta.
+
+* **Flujo de Eliminación Correcta**: Simula el ciclo de vida completo creando un registro, ejecutando un método DELETE sobre su identificador, asegurando el código de éxito de eliminación `204 No Content`, y validando posteriormente que una consulta GET al recurso retorne un código `404 Not Found`.
+
+* **Persistencia Robusta ante Caídas**: Inserta un pedido en el sistema, ejecuta comandos de terminal desde Node (`docker compose down`) para apagar y remover los contenedores simulando un fallo crítico de infraestructura. Tras reactivar los servicios de manera aislada (`docker compose up -d`), espera la reestabilización del entorno y consulta la información inicial mediante su identificador único para verificar que los datos persistieron de manera intacta en el volumen Docker asociado. *Nota: Esta prueba cuenta con un timeout extendido a 60 segundos debido a la carga dinámica del ambiente [1].*
+
+### Ejecución de la Suite de Pruebas
+
+Para ejecutar las pruebas en el entorno de desarrollo, asegúrate de tener instaladas las dependencias y corre el siguiente comando dentro del contenedor o en tu terminal configurada:
+
+```bash
+npm test -- --verbose 
+```
+
 
 ## 9. Estructura del repositorio
  
@@ -189,8 +234,36 @@ servicioComida/
 └── .gitignore
 ```
 
+
 ## 10. Kubernetes 
 Pendiente de montar
 
-## 11. Uso de IA
-Durante el desarrollo se utilizaron herramientas de IA como apoyo para explicar conceptos, revisar configuraciones y detectar posibles errores. Las decisiones, comandos, manifiestos y cambios incorporados al repositorio fueron revisados y comprobados manualmente por el grupo antes de considerarse parte de la solución.
+
+## 11. Decisiones de Arquitectura
+
+Para el diseño e implementación de este servicio, se priorizó la modularidad, la seguridad robusta, la ligereza del código y la facilidad de despliegue en entornos locales y productivos. A continuación, se detallan los componentes principales seleccionados y la justificación técnica de su elección:
+
+### Tabla de Decisiones Técnicas
+
+| Componente / Capa | Tecnología Seleccionada | ¿Por qué se eligió? |
+| :--- | :--- | :--- |
+| **Lenguaje y Entorno** | **JavaScript (Node.js + Express)** | Permite un desarrollo rápido, ágil y con un consumo mínimo de recursos en contenedores. Express proporciona un enrutamiento liviano y directo para construir APIs REST sin sobrecarga de código. |
+| **Controlador de BD** | **Módulo `pg` (node-postgres)** | Se eligió usar el driver nativo de PostgreSQL en lugar de un ORM pesado (como Sequelize o Prisma). Esto garantiza consultas directas, máxima velocidad de ejecución, menor consumo de memoria y un control absoluto sobre el SQL ejecutado. |
+| **Base de Datos** | **PostgreSQL** | Ofrece alta fiabilidad, soporte nativo para tipos de datos complejos (como `TIMESTAMP`) y una integración excelente con Docker mediante scripts de inicialización automáticos (`.sql`). |
+| **Autenticación** | **Keycloak (OIDC/JWT)** | Evita implementar lógica de autenticación a mano (*"no reinventar la rueda"*). Centraliza la gestión de usuarios, roles y emisión de tokens (JWT), garantizando un estándar de la industria altamente seguro y desacoplado de la lógica de negocio. |
+| **Orquestación Local** | **Docker Compose v2** | Permite levantar todo el ecosistema (App, BD y Auth) de forma idéntica en cualquier máquina con un solo comando. Facilita la persistencia mediante volúmenes independientes del ciclo de vida del contenedor. |
+| **Control de Flujo** | **Depends_on + Healthcheck** | En lugar de programar lógica de reintento dentro del código de la aplicación Node.js, delegamos la sincronización en Docker. La app no inicia hasta que la BD y Keycloak reporten estar completamente listos (`service_healthy`). |
+| **Framework de Pruebas** | **Jest + Supertest** | Proveen una sintaxis intuitiva y herramientas potentes para ejecutar tanto pruebas unitarias aisladas como pruebas de integración que requieran levantar servicios externos y simular peticiones HTTP reales. |
+
+### Justificación de Diseño Clave
+
+* **Desacoplamiento Absoluto de Credenciales:** La imagen de Docker generada es completamente agnóstica al entorno. No contiene contraseñas, llaves ni secretos en el código fuente; todo se inyecta en tiempo de ejecución a través de variables de entorno (`.env`), cumpliendo con las buenas prácticas de *Twelve-Factor App*.
+
+* **Persistencia Independiente:** Al declarar el volumen `postgres_data` de forma externa a la existencia del contenedor, se garantiza la resiliencia de la información ante fallos lógicos, actualizaciones de la aplicación o reinicios del sistema operativo anfitrión.
+
+* **Seguridad basada en Roles (RBAC):** La aplicación no valida usuarios, solo valida la autenticidad del token y la presencia del rol `usuario`. Esto permite cambiar las políticas de contraseñas o agregar proveedores de identidad en Keycloak en el futuro sin modificar una sola línea de código en la API Express.
+
+
+## 12. Uso de IA
+Durante el desarrollo se utilizaron herramientas de IA como apoyo para explicar conceptos, revisar configuraciones, ayudar en el proceso de redacción técnica pero accesible y detectar posibles errores. Las decisiones, comandos, manifiestos y cambios incorporados al repositorio fueron revisados y comprobados manualmente por el grupo antes de considerarse parte de la solución.
+Además se utilizó las herramientas de IA para realizar investigaciones de tecnologías y comandos de manera mas rápida y eficaz, asi evitando entrar a extensas documentaciones y ahorrar tiempo durante el proceso de producción. En síntesis la IA fue un asistente y no el autor del trabajo. 
